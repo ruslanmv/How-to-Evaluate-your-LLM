@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+
+<script>
+    function computeFunction() {
+        var references = document.getElementById('references').value;
+        var predictions = document.getElementById('predictions').value;
+        var checkboxSentenceBleu = document.getElementById('checkbox-sentence-bleu').checked;
+        var checkboxCorpusBleu = document.getElementById('checkbox-corpus-bleu').checked;
+        var checkboxRouge1 = document.getElementById('checkbox-rouge1').checked;
+        var checkboxRouge2 = document.getElementById('checkbox-rouge2').checked;
+        var checkboxRougeL = document.getElementById('checkbox-rougeL').checked;
+
+        $.ajax({
+            type: 'POST',
+            url: '/compute/',
+            data: {
+                references: references,
+                predictions: predictions,
+                checkbox_sentence_bleu: checkboxSentenceBleu,
+                checkbox_corpus_bleu: checkboxCorpusBleu,
+                checkbox_rouge1: checkboxRouge1,
+                checkbox_rouge2: checkboxRouge2,
+                checkbox_rougeL: checkboxRougeL,
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            success: function (data) {
+                var resultsContainer = document.getElementById('results-container');
+                var resultHTML = '';
+
+                if (checkboxSentenceBleu && 'sentence_bleu' in data) {
+                    resultHTML += '<p>Sentence BLEU: ' + data.sentence_bleu + '</p>';
+                }
+                if (checkboxCorpusBleu && 'corpus_bleu' in data) {
+                    resultHTML += '<p>Corpus BLEU: ' + data.corpus_bleu + '</p>';
+                }
+                if (checkboxRouge1 && 'rouge1' in data) {
+                    resultHTML += '<p>ROUGE-1: ' + data.rouge1 + '</p>';
+                }
+                if (checkboxRouge2 && 'rouge2' in data) {
+                    resultHTML += '<p>ROUGE-2: ' + data.rouge2 + '</p>';
+                }
+                if (checkboxRougeL && 'rougeL' in data) {
+                    resultHTML += '<p>ROUGE-L: ' + data.rougeL + '</p>';
+                }
+
+                resultsContainer.innerHTML = resultHTML || '<p>No results available</p>';
+            },
+            error: function () {
+                alert('Parsing failed. Please check your inputs format.');
+            }
+        });
+    }
+
+    function handleFileDrop(event, textareaId) {
+        event.preventDefault();
+        var textarea = document.getElementById(textareaId);
+        var files = event.dataTransfer.files;
+
+        if (files.length > 0) {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                textarea.value = e.target.result;
+            };
+
+            reader.readAsText(files[0]);
+        }
+    }
+
+    function handleFileUpload(inputId, textareaId) {
+        var input = document.getElementById(inputId);
+        var textarea = document.getElementById(textareaId);
+
+        var files = input.files;
+
+        if (files.length > 0) {
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                textarea.value = e.target.result;
+            };
+
+            reader.readAsText(files[0]);
+        }
+    }
+
+    function handleDragOver(event) {
+        event.preventDefault();
+    }
+
+    function checkIfCanCompute() {
+        var anyCheckbox = !$("input:checkbox:checked").length > 0;
+        var references = document.getElementById("references").value;
+        var predictions = document.getElementById("predictions").value;
+
+        document.getElementById("compute-button").disabled = anyCheckbox;
+    }
+
+    $(document).ready(function () {
+        $('input[type=checkbox]').change(
+            function () {
+                checkIfCanCompute();
+            });
+
+        $('textarea').change(
+            function () {
+                checkIfCanCompute();
+            });
+    });
+
+</script>
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BLEU and ROUGE</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f8f8f8;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        #container {
+            background-color: #ffffff;
+            box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            width: 80%;
+            max-width: 800px;
+            padding: 30px;
+            box-sizing: border-box;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1,
+        h2,
+        p {
+            color: #333333;
+        }
+
+        label,
+        a {
+            color: #4caf50;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 15px;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            resize: vertical;
+        }
+
+        .label-container,
+        .checkbox-container {
+            margin-bottom: 30px;
+        }
+
+        .checkbox-container {
+            text-align: center;
+        }
+
+        label:hover,
+        a:hover {
+            text-decoration: underline;
+        }
+
+        button {
+            background-color: #4caf50;
+            color: #fff;
+            border: none;
+            padding: 15px 30px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        button:disabled {
+            background-color: #81a683;
+            cursor: not-allowed;
+        }
+
+        #results-container {
+            text-align: center;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container">
+        <header>
+            <h1>How faithful are your predictions?</h1>
+            <p>You can write, drag-and-drop or upload your references and predictions. <br> Always quote your inputs and
+                separate them with a comma. <br> When multiple references for the same prediction, use a list.</p>
+        </header>
+
+        <div class="label-container" ondrop="handleFileDrop(event, 'references')" ondragover="handleDragOver(event)">
+            <label for="references">References</label>
+            <textarea id="references" rows="5"
+                placeholder="&quot;The quick brown fox jumps over the lazy dog&quot;, [&quot;The cat in the hat is wearing a red bow&quot;, &quot;A feline in headwear sports a crimson ribbon&quot;], &quot;The sun sets behind the mountains, casting a warm glow&quot;"
+                draggable="true" ondrop="handleFileDrop(event, 'references')"
+                ondragover="handleDragOver(event)"></textarea>
+            <input type="file" id="file-references" accept=".txt"
+                onchange="handleFileUpload('file-references', 'references')">
+        </div>
+
+        <div class="label-container" ondrop="handleFileDrop(event, 'predictions')" ondragover="handleDragOver(event)">
+            <label for="predictions">Predictions</label>
+            <textarea id="predictions" rows="5"
+                placeholder="&quot;A speedy brown fox jumps over the lazy dog&quot;, &quot;A cat with a hat wears a red bow&quot;, &quot;The sun sets, casting a warm glow behind the mountains&quot;"
+                draggable="true" ondrop="handleFileDrop(event, 'predictions')"
+                ondragover="handleDragOver(event)"></textarea>
+            <input type="file" id="file-predictions" accept=".txt"
+                onchange="handleFileUpload('file-predictions', 'predictions')">
+        </div>
+
+        <div class="checkbox-container">
+            <label for="checkbox-sentence-bleu">
+                <input type="checkbox" id="checkbox-sentence-bleu" name="checkbox-sentence-bleu"> <a
+                    href="https://aclanthology.org/P02-1040/">Sentence BLEU</a>
+            </label>
+
+            <label for="checkbox-corpus-bleu">
+                <input type="checkbox" id="checkbox-corpus-bleu" name="checkbox-corpus-bleu"> <a
+                    href="https://aclanthology.org/P02-1040/">Corpus BLEU</a>
+            </label>
+
+            <label for="checkbox-rouge1">
+                <input type="checkbox" id="checkbox-rouge1" name="checkbox-rouge1"> <a
+                    href="https://aclanthology.org/W04-1013/">ROUGE-1</a>
+            </label>
+
+            <label for="checkbox-rouge2">
+                <input type="checkbox" id="checkbox-rouge2" name="checkbox-rouge2"> <a
+                    href="https://aclanthology.org/W04-1013/">ROUGE-2</a>
+            </label>
+
+            <label for="checkbox-rougeL">
+                <input type="checkbox" id="checkbox-rougeL" name="checkbox-rougeL"> <a
+                    href="https://aclanthology.org/W04-1013/">ROUGE-L</a>
+            </label>
+        </div>
+
+        <div style="text-align: center;">
+            <button id="compute-button" onclick="computeFunction()" disabled>Compute</button>
+        </div>
+        <div id="results-container" style="text-align: center; margin-top: 30px;"></div>
+    </div>
+</body>
+
+</html>
